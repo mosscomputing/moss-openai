@@ -1,8 +1,13 @@
 # moss-openai
 
-MOSS signing integration for OpenAI SDK. **Unsigned output is broken output.**
+Cryptographic signing for OpenAI SDK outputs using ML-DSA-44 post-quantum signatures.
 
 [![PyPI](https://img.shields.io/pypi/v/moss-openai)](https://pypi.org/project/moss-openai/)
+[![License](https://img.shields.io/badge/license-BSL--1.1-blue)](LICENSE)
+
+## Overview
+
+moss-openai integrates MOSS cryptographic signing into your OpenAI SDK usage. Every tool call, completion, and message gets a tamper-evident signature using ML-DSA-44 (NIST FIPS 204), the post-quantum cryptographic standard. This creates an immutable audit trail for compliance, debugging, and accountability.
 
 ## Installation
 
@@ -12,15 +17,12 @@ pip install moss-openai
 
 ## Quick Start
 
-Sign tool calls, completions, and messages from OpenAI:
-
 ```python
 from openai import OpenAI
-from moss_openai import sign_tool_call, sign_completion, sign_message
+from moss_openai import sign_tool_call, sign_completion
 
 client = OpenAI()
 
-# Get a completion with tool calls
 response = client.chat.completions.create(
     model="gpt-4",
     messages=[{"role": "user", "content": "What's the weather?"}],
@@ -30,25 +32,42 @@ response = client.chat.completions.create(
 # Sign the completion
 result = sign_completion(response, agent_id="weather-bot")
 print(f"Signed: {result.signature[:20]}...")
+```
+
+## Features
+
+- **ML-DSA-44 signatures** - Post-quantum cryptographic standard (NIST FIPS 204)
+- **Tool call signing** - Sign every OpenAI tool/function call
+- **Completion signing** - Sign ChatCompletion responses
+- **Message signing** - Sign individual messages
+- **Policy enforcement** - Block high-risk actions with enterprise policies
+- **Offline verification** - Verify signatures without network access
+
+## Usage Examples
+
+### Basic Usage
+
+```python
+from moss_openai import sign_tool_call, sign_completion, verify_envelope
 
 # Sign individual tool calls
 for choice in response.choices:
     if choice.message.tool_calls:
         for tool_call in choice.message.tool_calls:
-            result = sign_tool_call(tool_call, agent_id="weather-bot")
+            result = sign_tool_call(tool_call, agent_id="my-bot")
+
+# Verify any envelope
+verify_result = verify_envelope(result.envelope)
+print(f"Valid: {verify_result.valid}, Subject: {verify_result.subject}")
 ```
 
-## Enterprise Mode
-
-Set `MOSS_API_KEY` for automatic policy evaluation:
+### With Policy Enforcement
 
 ```python
 import os
 os.environ["MOSS_API_KEY"] = "your-api-key"
 
-from moss_openai import sign_tool_call, enterprise_enabled
-
-print(f"Enterprise: {enterprise_enabled()}")  # True
+from moss_openai import sign_tool_call
 
 result = sign_tool_call(
     tool_call,
@@ -60,17 +79,7 @@ if result.blocked:
     print(f"Blocked by policy: {result.policy.reason}")
 ```
 
-## Verification
-
-```python
-from moss_openai import verify_envelope
-
-verify_result = verify_envelope(result.envelope)
-if verify_result.valid:
-    print(f"Signed by: {verify_result.subject}")
-```
-
-## All Functions
+## API Reference
 
 | Function | Description |
 |----------|-------------|
@@ -83,27 +92,21 @@ if verify_result.valid:
 | `sign_function_call()` | Sign legacy function call |
 | `sign_function_call_async()` | Async version |
 | `verify_envelope()` | Verify a signed envelope |
+| `enterprise_enabled()` | Check if enterprise mode is active |
 
-## Enterprise Features
+## Configuration
 
-| Feature | Free | Enterprise |
-|---------|------|------------|
-| Local signing | ✓ | ✓ |
-| Offline verification | ✓ | ✓ |
-| Policy evaluation | - | ✓ |
-| Evidence retention | - | ✓ |
-| Audit exports | - | ✓ |
+| Environment Variable | Description |
+|---------------------|-------------|
+| `MOSS_API_KEY` | API key for enterprise features (policy enforcement, SIEM) |
+| `MOSS_API_URL` | Custom API endpoint (default: api.mosscomputing.com) |
 
 ## Links
 
-- [moss-sdk](https://pypi.org/project/moss-sdk/) - Core MOSS SDK
-- [mosscomputing.com](https://mosscomputing.com) - Project site
+- [Documentation](https://docs.mosscomputing.com/sdks/openai)
+- [Dashboard](https://app.mosscomputing.com)
+- [PyPI](https://pypi.org/project/moss-openai/)
 
 ## License
 
-This package is licensed under the [Business Source License 1.1](LICENSE).
-
-- Free for evaluation, testing, and development
-- Free for non-production use
-- Production use requires a [MOSS subscription](https://mosscomputing.com/pricing)
-- Converts to Apache 2.0 on January 25, 2030
+Business Source License 1.1 - Production use requires a [MOSS subscription](https://mosscomputing.com/pricing).
